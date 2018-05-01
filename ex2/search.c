@@ -10,6 +10,9 @@
 #define RAND_LETTER         ('A' + RAND(L))
 #define RAND_NUMBER         ('0' + RAND(M))
 #define RAND_ALPHANUM(i)    ((i < d/2) ? RAND_LETTER : RAND_NUMBER)
+#define ERROR(...)          { fprintf(stderr, __VA_ARGS__); }
+#define ERROR_EXIT(...)     { ERROR(__VA_ARGS__); exit(EXIT_FAILURE); }
+#define ERROR_RETURNV(...)  { ERROR(__VA_ARGS__); return; }
 
 typedef struct node_s node_t;
 struct node_s {
@@ -49,10 +52,7 @@ node_t  *source, *g1, *g2, *goal;
 int main(int argc, char **argv)
 {
 	if (argc != 5)
-	{
-		fprintf(stderr, "USAGE: %s L M d N\n", argv[0]);
-		exit(EXIT_FAILURE);
-	}
+		ERROR_EXIT("USAGE: %s L M d N\n", argv[0]);
 
 	get_args(argv);
 //	printf("L: %d M: %d d: %d N: %d\n", L, M, d, N);
@@ -82,34 +82,22 @@ void get_args(char **argv)
 {
 	L = atoi(argv[1]);
 	if (L <= 0 || L >= 10)
-	{
-		fprintf(stderr, "L: should be in interval [1,9]\n");
-		exit(EXIT_FAILURE);
-	}
+		ERROR_EXIT("L: should be in interval [1,9]\n");
 
 	M = atoi(argv[2]);
 	if (M <= 0 || M >= 10)
-	{
-		fprintf(stderr, "M: should be in interval [1,9]\n");
-		exit(EXIT_FAILURE);
-	}
+		ERROR_EXIT("M: should be in interval [1,9]\n");
 
 	d = atoi(argv[3]);
 	if (d < 2 || d % 2 != 0)
-	{
-		fprintf(stderr, "d: should be in {x: EVEN(x) && x>=2}\n");
-		exit(EXIT_FAILURE);
-	}
+		ERROR_EXIT("d: should be in {x: EVEN(x) && x>=2}\n");
 
 	N = atoi(argv[4]);
 	// The value of N should be at least 3: 1 initial and 2 goal states
 	if (N < 3 || N > (int) pow((double) L*M, (double) d/2))
-	{
-		fprintf(stderr, "N: should be in {x: x>=3 && x<=(L*M)^(d/2)}"
+		ERROR_EXIT("N: should be in {x: x>=3 && x<=(L*M)^(d/2)}"
 			        " = [3, %d]\n",
 			        (int) pow((double) L*M, (double) d/2));
-		exit(EXIT_FAILURE);
-	}
 }
 
 
@@ -117,6 +105,9 @@ void alloc_state_space(void)
 {
 	char **space;
 	int i, j;
+
+	if (state_space)
+		ERROR_RETURNV("State space is already allocated\n");
 
 	space = state_space = (char **) malloc(N * sizeof(char *));
 	if (!space)
@@ -148,6 +139,10 @@ void alloc_state_space(void)
 void print_state_space(void)
 {
 	int i, j;
+
+	if (!state_space)
+		ERROR_RETURNV("State space has not yet been allocated\n");
+
 	for (i = 0; i < N; i++)
 	{
 #if 1
@@ -179,6 +174,10 @@ void alloc_node_array(void)
 void print_node_array(void)
 {
 	int i;
+
+	if (!nodes)
+		ERROR_RETURNV("Nodes array has not yet been allocated\n");
+
 	for (i = 0; i < N; i++)
 		printf("%d - %p\n", i+1, nodes[i]);
 }
@@ -206,6 +205,10 @@ void free_node_array(void)
 int unique_state(int sindex)
 {
 	int i;
+
+	if (!state_space)
+		ERROR_EXIT("State space has not yet been allocated\n");
+
 	for (i = 0; i < sindex; i++)
 		if (strncmp(state_space[i], state_space[sindex], d) == 0)
 			return 0;
@@ -219,10 +222,7 @@ void read_state(char *sname, node_t **nptr)
 	node_t *tmp_node;
 
 	if (!state_space)
-	{
-		fprintf(stderr, "State space has not yet been initialized!\n");
-		exit(EXIT_FAILURE);
-	}
+		ERROR_RETURNV("State space has not yet been allocated!\n");
 
 	do
 	{
@@ -230,9 +230,12 @@ void read_state(char *sname, node_t **nptr)
 		{
 			printf("Enter state-index of %s [1-%d]: ", sname, N);
 			if (scanf("%d", &x) != 1)
-				fprintf(stderr, "scanf: Error reading\n");
+				ERROR("scanf: Error reading\n");
+			if (x >= 1 && x <= N)
+				break;
+			ERROR("%d: Index out of bounds\n", x);
 		}
-		while (x < 1 || x > N);
+		while (1);
 	
 		if (alloc)
 		{
@@ -244,9 +247,9 @@ void read_state(char *sname, node_t **nptr)
 
 		if (nodes[x-1])
 		{
-			fprintf(stderr, "State #%d is already used as %s state!\n",
+			ERROR("State #%d is already used as %s state!\n",
 				x, (nodes[x-1] == source) ? "source" : "goal");
-			fprintf(stderr, "Please try again...\n");
+			ERROR("Please try again...\n");
 		}
 		else
 			break;
