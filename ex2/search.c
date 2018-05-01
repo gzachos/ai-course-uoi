@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
+#include <string.h>
+#include <math.h>
 
 /* Global definitions */
 #define RAND(max)           (rand() % (max))  /* [0,max) */
@@ -13,6 +15,7 @@
 void   get_args(char **argv);
 char **alloc_state_space(void);
 void   print_state_space(void);
+int    unique_state(int sindex);
 
 /* Global data */
 int    L, M, d, N;
@@ -67,9 +70,11 @@ void get_args(char **argv)
 
 	N = atoi(argv[4]);
 	// The value of N should be at least 3: 1 initial and 2 goal states
-	if (N < 3)
+	if (N < 3 || N > (int) pow((double) L*M, (double) d/2))
 	{
-		fprintf(stderr, "N should be in {x: x >= 3}\n");
+		fprintf(stderr, "N: should be in {x: x>=3 && x<=(L*M)^(d/2)}"
+			        " = [3, %d]\n",
+			        (int) pow((double) L*M, (double) d/2));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -80,7 +85,7 @@ char **alloc_state_space(void)
 	char **space;
 	int i, j;
 
-	space = (char **) malloc(N * sizeof(char *));
+	space = state_space = (char **) malloc(N * sizeof(char *));
 	if (!space)
 	{
 		perror("malloc");
@@ -95,8 +100,13 @@ char **alloc_state_space(void)
 			perror("malloc");
 			exit(EXIT_FAILURE);
 		}
-		for (j = 0; j < d; j++)
-			snprintf(space[i]+j, 2, "%c", RAND_ALPHANUM(j));
+
+		do
+		{
+			for (j = 0; j < d; j++)
+				snprintf(space[i]+j, 2, "%c", RAND_ALPHANUM(j));
+		}
+		while (!unique_state(i));
 	}
 	return space;
 }
@@ -107,6 +117,7 @@ void print_state_space(void)
 	int i, j;
 	for (i = 0; i < N; i++)
 	{
+//		printf("%-4d: ", i);
 #if 1
 		for (j = 0; j < d; j++)
 			printf("%c ", state_space[i][j]);
@@ -115,5 +126,15 @@ void print_state_space(void)
 		printf("%s\n", state_space[i]);
 #endif
 	}
+}
+
+
+int unique_state(int sindex)
+{
+	int i;
+	for (i = 0; i < sindex; i++)
+		if (strncmp(state_space[i], state_space[sindex], d) == 0)
+			return 0;
+	return 1;
 }
 
