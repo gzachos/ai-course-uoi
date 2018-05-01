@@ -12,10 +12,11 @@
 #define RAND_ALPHANUM(j)    ((j < d/2) ? RAND_LETTER : RAND_NUMBER)
 
 /* Function prototypes */
-void   get_args(char **argv);
-char **alloc_state_space(void);
-void   print_state_space(void);
-int    unique_state(int sindex);
+void  get_args(char **argv);
+void  alloc_state_space(void);
+void  print_state_space(void);
+void  memfree(int nrows);
+int   unique_state(int sindex);
 
 /* Global data */
 int    L, M, d, N;
@@ -24,8 +25,6 @@ char **state_space;
 
 int main(int argc, char **argv)
 {
-	int i, j;
-
 	if (argc != 5)
 	{
 		fprintf(stderr, "USAGE: %s L M d N\n", argv[0]);
@@ -38,7 +37,7 @@ int main(int argc, char **argv)
 	/* Initialize pseudo-random number generator */
 	srand(time(NULL));
 
-	state_space = alloc_state_space();
+	alloc_state_space();
 	print_state_space();
 
 	return EXIT_SUCCESS;
@@ -80,7 +79,7 @@ void get_args(char **argv)
 }
 
 
-char **alloc_state_space(void)
+void alloc_state_space(void)
 {
 	char **space;
 	int i, j;
@@ -98,6 +97,7 @@ char **alloc_state_space(void)
 		if (!space[i])
 		{
 			perror("malloc");
+			memfree(i);
 			exit(EXIT_FAILURE);
 		}
 
@@ -108,7 +108,6 @@ char **alloc_state_space(void)
 		}
 		while (!unique_state(i));
 	}
-	return space;
 }
 
 
@@ -126,6 +125,15 @@ void print_state_space(void)
 		printf("%s\n", state_space[i]);
 #endif
 	}
+}
+
+
+void memfree(int nrows)
+{
+	int i;
+	for (i = 0; i < nrows; i++)
+		free(state_space[i]);
+	free(state_space);
 }
 
 
