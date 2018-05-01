@@ -9,18 +9,41 @@
 #define RAND(max)           (rand() % (max))  /* [0,max) */
 #define RAND_LETTER         ('A' + RAND(L))
 #define RAND_NUMBER         ('0' + RAND(M))
-#define RAND_ALPHANUM(j)    ((j < d/2) ? RAND_LETTER : RAND_NUMBER)
+#define RAND_ALPHANUM(i)    ((i < d/2) ? RAND_LETTER : RAND_NUMBER)
+
+typedef struct node_s node_t;
+struct node_s {
+	node_t *came_from;
+	float   g;
+	float   e;
+	char    visited;
+	char   *vector;
+};
+
+typedef struct set_node_s set_node_t;
+struct set_node_s {
+	node_t     *node;
+	set_node_t *next;
+	set_node_t *prev;
+};
 
 /* Function prototypes */
-void  get_args(char **argv);
-void  alloc_state_space(void);
-void  print_state_space(void);
-void  memfree(int nrows);
-int   unique_state(int sindex);
+void     get_args(char **argv);
+void     alloc_state_space(void);
+void     print_state_space(void);
+void     alloc_node_array(void);
+void     print_node_array(void);
+void     free_state_space(int nrows);
+void     free_node_array(void);
+void     read_state(char *sname, node_t **nptr);
+int      unique_state(int sindex);
+node_t  *alloc_node(char *vector);
 
 /* Global data */
-int    L, M, d, N;
-char **state_space;
+int      L, M, d, N;
+char   **state_space;
+node_t **nodes;
+node_t  *source, *g1, *g2, *goal;
 
 
 int main(int argc, char **argv)
@@ -39,6 +62,17 @@ int main(int argc, char **argv)
 
 	alloc_state_space();
 	print_state_space();
+	alloc_node_array();
+	print_node_array();
+
+	read_state("Source", &source);
+	read_state("Goal #1", &g1);
+	read_state("Goal #2", &g2);
+
+	printf("Source:  %s\nGoal #1: %s\nGoal #2: %s\n", source->vector,
+		                                g1->vector, g2->vector);
+
+//	print_node_array();
 
 	return EXIT_SUCCESS;
 }
@@ -88,7 +122,7 @@ void alloc_state_space(void)
 	if (!space)
 	{
 		perror("malloc");
-		exit(EXIT_FAILURE);
+		exit(errno);
 	}
 
 	for (i = 0; i < N; i++)
@@ -97,8 +131,8 @@ void alloc_state_space(void)
 		if (!space[i])
 		{
 			perror("malloc");
-			memfree(i);
-			exit(EXIT_FAILURE);
+			free_state_space(i);
+			exit(errno);
 		}
 
 		do
@@ -116,7 +150,9 @@ void print_state_space(void)
 	int i, j;
 	for (i = 0; i < N; i++)
 	{
-//		printf("%-4d: ", i);
+#if 1
+		printf("%-4d: ", i+1);
+#endif
 #if 1
 		for (j = 0; j < d; j++)
 			printf("%c ", state_space[i][j]);
@@ -128,12 +164,42 @@ void print_state_space(void)
 }
 
 
-void memfree(int nrows)
+void alloc_node_array(void)
+{
+	node_t **narray = calloc(N, sizeof(node_t *));
+	if (!narray)
+	{
+		perror("calloc");
+		exit(errno);
+	}
+	nodes = narray;
+}
+
+
+void print_node_array(void)
+{
+	int i;
+	for (i = 0; i < N; i++)
+		printf("%d - %p\n", i+1, nodes[i]);
+}
+
+
+void free_state_space(int nrows)
 {
 	int i;
 	for (i = 0; i < nrows; i++)
 		free(state_space[i]);
 	free(state_space);
+}
+
+
+void free_node_array(void)
+{
+	int i;
+	for (i = 0; i < N; i++)
+		if (nodes[i])
+			free(nodes[i]);
+	free(nodes);
 }
 
 
@@ -145,4 +211,65 @@ int unique_state(int sindex)
 			return 0;
 	return 1;
 }
+
+
+void read_state(char *sname, node_t **nptr)
+{
+	int     x = -1, alloc = 1;
+	node_t *tmp_node;
+
+	if (!state_space)
+	{
+		fprintf(stderr, "State space has not yet been initialized!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	do
+	{
+		do
+		{
+			printf("Enter state-index of %s [1-%d]: ", sname, N);
+			if (scanf("%d", &x) != 1)
+				fprintf(stderr, "scanf: Error reading\n");
+		}
+		while (x < 1 || x > N);
+	
+		if (alloc)
+		{
+			tmp_node = alloc_node(state_space[x-1]);
+			alloc = 0;
+		}
+		else
+			tmp_node->vector = state_space[x-1];
+
+		if (nodes[x-1])
+		{
+			fprintf(stderr, "State #%d is already used as %s state!\n",
+				x, (nodes[x-1] == source) ? "source" : "goal");
+			fprintf(stderr, "Please try again...\n");
+		}
+		else
+			break;
+	}
+	while (1);
+
+	*nptr = nodes[x-1] = tmp_node;
+}
+
+
+node_t *alloc_node(char *vector)
+{
+	node_t *new_node;
+	new_node = malloc(sizeof(node_t));
+	if (!new_node)
+	{
+		perror("malloc");
+		exit(errno);
+	}
+	new_node->vector = vector;
+	new_node->visited = 0;
+	new_node->g = new_node->e = -1;
+	return new_node;
+}
+
 
