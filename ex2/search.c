@@ -20,7 +20,7 @@
 #define IN_CLOSEDSET(x)     ((x)->visited)
 #define _H(k,l)             heuristic_cost_estimate((k)->vector,(l)->vector)
 #define _G(k,l)             _H(k,l)
-#define HCE(x,y)            heuristic_cost_estimate(x,y) // For Graphviz
+#define EDGE_COST(x,y)      heuristic_cost_estimate(x,y) // For Graphviz
 
 typedef struct node_s node_t;
 struct node_s {
@@ -699,7 +699,7 @@ void produce_gv_graph(void)
 				fprintf(outfile, "  \"%d: %s\" -- \"%d: %s\" "
 						"[style=bold,label=\"%.1f\"]\n",
 						i+1, state_space[i], j+1, state_space[j],
-						HCE(state_space[i], state_space[j]));
+						EDGE_COST(state_space[i], state_space[j]));
 			}
 		}
 		if (neighbor_count == 0)
