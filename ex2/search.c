@@ -611,11 +611,13 @@ void produce_gv_graph(void)
 		{
 			if (is_neighbor(state_space[i], state_space[j]))
 			{
+				neighbor_count++;
+				if (i >= j)
+					continue;
 				fprintf(outfile, "  \"%d: %s\" -- \"%d: %s\" "
 						"[style=bold,label=\"%.1f\"]\n",
 						i+1, state_space[i], j+1, state_space[j],
 						HCE(state_space[i], state_space[j]));
-				neighbor_count++;
 			}
 		}
 		if (neighbor_count == 0)
@@ -623,6 +625,10 @@ void produce_gv_graph(void)
 	}
 	fprintf(outfile, "}\n");
 	fclose(outfile);
-	system("dot -Tpng graph.gv -o graph.png");
+
+	if (system("dot -Tpng graph.gv -o graph.png") == -1)
+		ERROR("Error running dot using system()\n");
 }
 #endif
+
+
