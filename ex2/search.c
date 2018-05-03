@@ -61,6 +61,7 @@ node_t     *set_pop_min_e(set_node_t **head, int *size);
 node_t     *set_delete(set_node_t **head);
 void        reconstruct_path(node_t *goal);
 void        reset_state_space(void);
+void        free_memory(void);
 #ifdef USE_GRAPHVIZ
 void        produce_gv_graph(void);
 #endif
@@ -76,6 +77,8 @@ int main(int argc, char **argv)
 {
 	if (argc != 5)
 		ERROR_EXIT("USAGE: %s L M d N\n", argv[0]);
+
+	atexit(&free_memory);
 
 	get_args(argv);
 
@@ -359,8 +362,12 @@ void a_star(node_t *source, node_t *goal)
 	int         frontier_size,
 		    expansions = 0;
 
-	source->g  = 0;
-	source->e  = _H(source, goal);
+	printf("\n######################################################");
+	printf("\n#    Search from %s to %s", source->vector, goal->vector);
+	printf("\n######################################################\n");
+
+	source->g = 0;
+	source->e = _H(source, goal);
 
 	set_append(&frontier, &frontier_size, source);
 	source->came_from = source;
@@ -423,7 +430,7 @@ void a_star(node_t *source, node_t *goal)
 		printf("process neighbors end\n");
 #endif
 	}
-	printf("\nStates: (%s) and (%s) are NOT connected!\n",
+	printf("\nStates: %s and %s are NOT connected!\n",
 		source->vector, goal->vector);
 	free_set(frontier);
 	free_set(neighbor_list);
@@ -579,7 +586,7 @@ void free_set(set_node_t *head)
 void reconstruct_path(node_t *goal)
 {
 	node_t *tmp_node = goal;
-	printf("\n");
+	printf("\nPath: ");
 	while (tmp_node && tmp_node != tmp_node->came_from)
 	{
 		printf("%s <- ", tmp_node->vector);
@@ -602,6 +609,13 @@ void reset_state_space(void)
 }
 
 
+void free_memory(void)
+{
+	free_node_array();
+	free_state_space(N);
+}
+
+
 #ifdef USE_GRAPHVIZ
 void produce_gv_graph(void)
 {
@@ -611,7 +625,7 @@ void produce_gv_graph(void)
 	if (!(outfile = fopen("graph.gv", "w")))
 	{
 		perror("fopen");
-		exit(errno);
+		return;
 	}
 
 	fprintf(outfile, "strict graph {\n");
