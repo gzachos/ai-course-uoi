@@ -53,24 +53,23 @@ float       heuristic_cost_estimate(char *v0, char *v1);
 int         is_neighbor(char *x, char *y);
 set_node_t *get_neighbors(node_t *node);
 void        a_star(node_t *source, node_t *goal);
+void        print_search_info(int expansions, float total_cost);
 void        set_append(set_node_t **head, int *size, node_t *new_node);
 int         set_contains(set_node_t **head, node_t *node);
 void        free_set(set_node_t *head);
 node_t     *set_pop_min_e(set_node_t **head, int *size);
 node_t     *set_delete(set_node_t **head);
 void        reconstruct_path(node_t *goal);
+void        reset_state_space(void);
 #ifdef USE_GRAPHVIZ
 void        produce_gv_graph(void);
 #endif
 
 /* Global data */
-int      L, M, d, N,
-	 expansions = 0,
-	 print_info;
+int      L, M, d, N;
 char   **state_space;
-float    total_cost;
 node_t **nodes;
-node_t  *source, *g1, *g2, *goal;
+node_t  *source, *g1, *g2;
 
 
 int main(int argc, char **argv)
@@ -79,7 +78,6 @@ int main(int argc, char **argv)
 		ERROR_EXIT("USAGE: %s L M d N\n", argv[0]);
 
 	get_args(argv);
-//	printf("L: %d M: %d d: %d N: %d\n", L, M, d, N);
 
 	/* Initialize pseudo-random number generator */
 	srand(time(NULL));
@@ -87,7 +85,6 @@ int main(int argc, char **argv)
 	alloc_state_space();
 	print_state_space();
 	alloc_node_array();
-//	print_node_array();
 
 #ifdef USE_GRAPHVIZ
 	produce_gv_graph();
@@ -97,23 +94,14 @@ int main(int argc, char **argv)
 	read_state("Goal #1", &g1);
 	read_state("Goal #2", &g2);
 
-	printf("Source:  %s\nGoal #1: %s\nGoal #2: %s\n", source->vector,
-		                                g1->vector, g2->vector);
-
-//	print_node_array();
-	printf("%f\n", _H(source, g1));
-	printf("%f\n", _H(source, g2));
-
-	source->g = 0;
-	source->e = _H(source, g1);
+	printf("\n");
+	printf("Source:  %s\n", source->vector);
+	printf("Goal #1: %s\n", g1->vector);
+	printf("Goal #2: %s\n", g2->vector);
 
 	a_star(source, g1);
-
-	if (print_info)
-	{
-		printf("\nNumber of state expansions: %d\n", expansions);
-		printf("Total (actual) path cost:   %.1f\n", total_cost);
-	}
+	reset_state_space();
+	a_star(source, g2);
 
 	return EXIT_SUCCESS;
 }
@@ -366,10 +354,13 @@ void a_star(node_t *source, node_t *goal)
 	           *neighbor_node;
 	set_node_t *frontier = NULL,
 	           *neighbor_list = NULL;
-	float       new_cost;
-	int         frontier_size;
+	float       new_cost,
+		    total_cost;
+	int         frontier_size,
+		    expansions = 0;
 
-	print_info = 1;
+	source->g  = 0;
+	source->e  = _H(source, goal);
 
 	set_append(&frontier, &frontier_size, source);
 	source->came_from = source;
@@ -395,6 +386,7 @@ void a_star(node_t *source, node_t *goal)
 			reconstruct_path(currnode);
 			free_set(frontier);
 			free_set(neighbor_list);
+			print_search_info(expansions, total_cost);
 			return;
 		}
 
@@ -435,7 +427,13 @@ void a_star(node_t *source, node_t *goal)
 		source->vector, goal->vector);
 	free_set(frontier);
 	free_set(neighbor_list);
-	print_info = 0;
+}
+
+
+void print_search_info(int expansions, float total_cost)
+{
+	printf("\nNumber of state expansions: %d\n", expansions);
+	printf("Total (actual) path cost:   %.1f\n", total_cost);
 }
 
 
@@ -591,6 +589,19 @@ void reconstruct_path(node_t *goal)
 }
 
 
+void reset_state_space(void)
+{
+	int i;
+	for (i = 0; i < N; i++)
+	{
+		if (!nodes[i])
+			continue;
+		nodes[i]->visited = 0;
+		nodes[i]->g = nodes[i]->e = -1;
+	}
+}
+
+
 #ifdef USE_GRAPHVIZ
 void produce_gv_graph(void)
 {
@@ -630,5 +641,4 @@ void produce_gv_graph(void)
 		ERROR("Error running dot using system()\n");
 }
 #endif
-
 
