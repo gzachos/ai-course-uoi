@@ -54,3 +54,6 @@ dkms.conf
 # Custom executables
 ex2/search
 
+# Graphviz-related files
+*.png
+*.gv
