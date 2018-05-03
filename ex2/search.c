@@ -7,7 +7,8 @@
 
 /* Global definitions */
 
-#define DEBUG
+#define DEBUG_L0
+#undef  DEBUG_L1
 
 #define RAND(max)           (rand() % (max))  /* [0,max) */
 #define RAND_LETTER         ('A' + RAND(L))
@@ -62,7 +63,7 @@ void        reconstruct_path(node_t *goal);
 int      L, M, d, N,
 	 expansions = 0;
 char   **state_space;
-float     total_cost = 0;
+float    total_cost;
 node_t **nodes;
 node_t  *source, *g1, *g2, *goal;
 
@@ -362,21 +363,23 @@ void a_star(node_t *source, node_t *goal)
 
 	while (frontier_size > 0)
 	{
-#ifdef DEBUG
+#ifdef DEBUG_L0
 		printf("Visit node (fs: %d): ", frontier_size);
 #endif
 		currnode = set_pop_min_e(&frontier, &frontier_size);
+#ifdef DEBUG_L0
 		printf("%s\n", currnode->vector);
+#endif
 		currnode->visited = 1;
 		expansions++;
 		if (currnode == goal)
 		{
-#ifdef DEBUG
+#ifdef DEBUG_L0
 			printf("Reached Goal!\n");
 #endif
-			total_cost += currnode->came_from->g +
-				      _G(currnode->came_from, currnode);
-			reconstruct_path(currnode); // TODO
+			total_cost = currnode->came_from->g +
+				     _G(currnode->came_from, currnode);
+			reconstruct_path(currnode);
 			free_set(frontier);
 			free_set(neighbor_list);
 			return;
@@ -384,17 +387,21 @@ void a_star(node_t *source, node_t *goal)
 
 		neighbor_list = get_neighbors(currnode);
 
-#ifdef DEBUG
+#ifdef DEBUG_L0
 		printf("process neighbors start\n");
 #endif
 		while ((neighbor_node = set_delete(&neighbor_list)) != NULL)
 		{
 			if (IN_CLOSEDSET(neighbor_node))
 				continue;
-#ifdef DEBUG
+#ifdef DEBUG_L0
 			printf("\tprocess neighbor %s\n", neighbor_node->vector);
 #endif
 			new_cost = currnode->g + _G(currnode, neighbor_node);
+#ifdef DEBUG_L1
+			printf("\tnew_cost (%f) = curr->g (%f) + g(curr-neigh) (%f)\n",
+					new_cost, currnode->g, _G(currnode, neighbor_node));
+#endif
 			if (!set_contains(&frontier, neighbor_node))
 				set_append(&frontier, &frontier_size, neighbor_node);
 			else if (new_cost >= neighbor_node->g)
@@ -402,9 +409,12 @@ void a_star(node_t *source, node_t *goal)
 			neighbor_node->came_from = currnode;
 			neighbor_node->g = new_cost;
 			neighbor_node->e = new_cost + _H(neighbor_node, goal);
-			printf("\te = %g + %f\n", currnode->g, _H(neighbor_node, goal));
+#ifdef DEBUG_L1
+			printf("\te (%f) = %f + %f\n", neighbor_node->e, neighbor_node->g,
+					_H(neighbor_node, goal));
+#endif
 		}
-#ifdef DEBUG
+#ifdef DEBUG_L0
 		printf("process neighbors end\n");
 #endif
 	}
