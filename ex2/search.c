@@ -6,8 +6,8 @@
 #include <math.h>
 
 /* Global definitions */
-
-#define DEBUG_L0
+#define USE_GRAPHVIZ
+#undef  DEBUG_L0
 #undef  DEBUG_L1
 
 #define RAND(max)           (rand() % (max))  /* [0,max) */
@@ -20,6 +20,7 @@
 #define IN_CLOSEDSET(x)     ((x)->visited)
 #define _H(k,l)             heuristic_cost_estimate((k)->vector,(l)->vector)
 #define _G(k,l)             _H(k,l)
+#define HCE(x,y)            heuristic_cost_estimate(x,y) // For Graphviz
 
 typedef struct node_s node_t;
 struct node_s {
@@ -58,10 +59,14 @@ void        free_set(set_node_t *head);
 node_t     *set_pop_min_e(set_node_t **head, int *size);
 node_t     *set_delete(set_node_t **head);
 void        reconstruct_path(node_t *goal);
+#ifdef USE_GRAPHVIZ
+void        produce_gv_graph(void);
+#endif
 
 /* Global data */
 int      L, M, d, N,
-	 expansions = 0;
+	 expansions = 0,
+	 print_info;
 char   **state_space;
 float    total_cost;
 node_t **nodes;
@@ -84,6 +89,10 @@ int main(int argc, char **argv)
 	alloc_node_array();
 //	print_node_array();
 
+#ifdef USE_GRAPHVIZ
+	produce_gv_graph();
+#endif
+
 	read_state("Source", &source);
 	read_state("Goal #1", &g1);
 	read_state("Goal #2", &g2);
@@ -92,16 +101,19 @@ int main(int argc, char **argv)
 		                                g1->vector, g2->vector);
 
 //	print_node_array();
-	printf("%f\n", heuristic_cost_estimate(source->vector, g1->vector));
-	printf("%f\n", heuristic_cost_estimate(source->vector, g2->vector));
+	printf("%f\n", _H(source, g1));
+	printf("%f\n", _H(source, g2));
 
 	source->g = 0;
 	source->e = _H(source, g1);
 
 	a_star(source, g1);
 
-	printf("\nNumber of state expansions: %d\n", expansions);
-	printf("Total (actual) path cost:   %.1f\n", total_cost);
+	if (print_info)
+	{
+		printf("\nNumber of state expansions: %d\n", expansions);
+		printf("Total (actual) path cost:   %.1f\n", total_cost);
+	}
 
 	return EXIT_SUCCESS;
 }
@@ -357,6 +369,7 @@ void a_star(node_t *source, node_t *goal)
 	float       new_cost;
 	int         frontier_size;
 
+	print_info = 1;
 
 	set_append(&frontier, &frontier_size, source);
 	source->came_from = source;
@@ -422,7 +435,7 @@ void a_star(node_t *source, node_t *goal)
 		source->vector, goal->vector);
 	free_set(frontier);
 	free_set(neighbor_list);
-	exit(EXIT_FAILURE);
+	print_info = 0;
 }
 
 
@@ -578,3 +591,38 @@ void reconstruct_path(node_t *goal)
 }
 
 
+#ifdef USE_GRAPHVIZ
+void produce_gv_graph(void)
+{
+	int i, j, neighbor_count;
+	FILE *outfile;
+
+	if (!(outfile = fopen("graph.gv", "w")))
+	{
+		perror("fopen");
+		exit(errno);
+	}
+
+	fprintf(outfile, "strict graph {\n");
+	for (i = 0; i < N; i++)
+	{
+		neighbor_count = 0;
+		for (j = 0; j < N; j++)
+		{
+			if (is_neighbor(state_space[i], state_space[j]))
+			{
+				fprintf(outfile, "  \"%d: %s\" -- \"%d: %s\" "
+						"[style=bold,label=\"%.1f\"]\n",
+						i+1, state_space[i], j+1, state_space[j],
+						HCE(state_space[i], state_space[j]));
+				neighbor_count++;
+			}
+		}
+		if (neighbor_count == 0)
+			fprintf(outfile, "  \"%d: %s\"\n", i+1, state_space[i]);
+	}
+	fprintf(outfile, "}\n");
+	fclose(outfile);
+	system("dot -Tpng graph.gv -o graph.png");
+}
+#endif
