@@ -626,7 +626,7 @@ void produce_gv_graph(void)
 	fprintf(outfile, "}\n");
 	fclose(outfile);
 
-	if (system("dot -Tpng graph.gv -o graph.png") == -1)
+	if (system("dot -Tps graph.gv -o graph.ps") == -1)
 		ERROR("Error running dot using system()\n");
 }
 #endif

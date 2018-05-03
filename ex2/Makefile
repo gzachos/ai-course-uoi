@@ -11,4 +11,5 @@ seach: search.c
 
 clean:
 	rm -rf *.out search
+	git checkout -- *.gv *.ps *.png
 
