@@ -38,6 +38,15 @@ struct set_node_s {
 	set_node_t *prev;
 };
 
+typedef struct search_solution_s search_solution_t;
+struct search_solution_s {
+	node_t     *source;
+	node_t     *goal;
+	set_node_t *reverse_path;
+	int         expansions;
+	float       total_cost;
+};
+
 /* Function prototypes */
 void        get_args(char **argv);
 void        alloc_state_space(void);
@@ -52,14 +61,15 @@ node_t     *alloc_node(char *vector);
 float       heuristic_cost_estimate(char *v0, char *v1);
 int         is_neighbor(char *x, char *y);
 set_node_t *get_neighbors(node_t *node);
-void        a_star(node_t *source, node_t *goal);
-void        print_search_info(int expansions, float total_cost);
+void        a_star(node_t *source, node_t *goal, search_solution_t *solution);
+void        print_search_solution_info(search_solution_t *s);
 void        set_append(set_node_t **head, int *size, node_t *new_node);
 int         set_contains(set_node_t **head, node_t *node);
 void        free_set(set_node_t *head);
 node_t     *set_pop_min_e(set_node_t **head, int *size);
 node_t     *set_delete(set_node_t **head);
-void        reconstruct_path(node_t *goal);
+set_node_t *reconstruct_path(node_t *goal);
+void        print_path_reverse(set_node_t *set_head);
 void        reset_state_space(void);
 void        free_memory(void);
 #ifdef USE_GRAPHVIZ
@@ -71,6 +81,7 @@ int      L, M, d, N;
 char   **state_space;
 node_t **nodes;
 node_t  *source, *g1, *g2;
+search_solution_t s0, s1;
 
 
 int main(int argc, char **argv)
@@ -102,9 +113,11 @@ int main(int argc, char **argv)
 	printf("Goal #1: %s\n", g1->vector);
 	printf("Goal #2: %s\n", g2->vector);
 
-	a_star(source, g1);
-	reset_state_space();
-	a_star(source, g2);
+	a_star(source, g1, &s0);
+	a_star(source, g2, &s1);
+
+	print_search_solution_info(&s0);
+	print_search_solution_info(&s1);
 
 	return EXIT_SUCCESS;
 }
@@ -351,21 +364,21 @@ set_node_t *get_neighbors(node_t *node)
 }
 
 
-void a_star(node_t *source, node_t *goal)
+void a_star(node_t *source, node_t *goal, search_solution_t *solution)
 {
 	node_t     *currnode,
 	           *neighbor_node;
 	set_node_t *frontier = NULL,
 	           *neighbor_list = NULL;
-	float       new_cost,
-		    total_cost;
+	float       new_cost;
 	int         frontier_size,
 		    expansions = 0;
 
+#ifdef DEBUG_L0
 	printf("\n######################################################");
 	printf("\n#    Search from %s to %s", source->vector, goal->vector);
 	printf("\n######################################################\n");
-
+#endif
 	source->g = 0;
 	source->e = _H(source, goal);
 
@@ -388,12 +401,16 @@ void a_star(node_t *source, node_t *goal)
 #ifdef DEBUG_L0
 			printf("Reached Goal!\n");
 #endif
-			total_cost = currnode->came_from->g +
-				     _G(currnode->came_from, currnode);
-			reconstruct_path(currnode);
+			solution->source     = source;
+			solution->goal       = goal;
+			solution->expansions = expansions;
+			solution->total_cost = currnode->came_from->g +
+				               _G(currnode->came_from, currnode);
+			solution->reverse_path = reconstruct_path(currnode);
+
 			free_set(frontier);
 			free_set(neighbor_list);
-			print_search_info(expansions, total_cost);
+			reset_state_space();
 			return;
 		}
 
@@ -430,17 +447,37 @@ void a_star(node_t *source, node_t *goal)
 		printf("process neighbors end\n");
 #endif
 	}
+#ifdef DEBUG_L0
 	printf("\nStates: %s and %s are NOT connected!\n",
-		source->vector, goal->vector);
+			source->vector, goal->vector);
+#endif
+	solution->source       = source;
+	solution->goal         = goal;
+	solution->expansions   = expansions;
+	solution->total_cost   = -1;
+	solution->reverse_path = NULL;
+
 	free_set(frontier);
 	free_set(neighbor_list);
+	reset_state_space();
 }
 
 
-void print_search_info(int expansions, float total_cost)
+void print_search_solution_info(search_solution_t *s)
 {
-	printf("\nNumber of state expansions: %d\n", expansions);
-	printf("Total (actual) path cost:   %.1f\n", total_cost);
+	printf("\n######################################################");
+	printf("\n#    Search from %s to %s", s->source->vector, s->goal->vector);
+	printf("\n######################################################\n");
+
+	if (!s->reverse_path)
+	{
+		printf("\nStates: %s and %s are NOT connected!\n",
+				s->source->vector, s->goal->vector);
+		return;
+	}
+	print_path_reverse(s->reverse_path);
+	printf("\nNumber of state expansions: %d\n", s->expansions);
+	printf("Total (actual) path cost:   %.1f\n", s->total_cost);
 }
 
 
@@ -583,16 +620,34 @@ void free_set(set_node_t *head)
 }
 
 
-void reconstruct_path(node_t *goal)
+set_node_t *reconstruct_path(node_t *goal)
 {
 	node_t *tmp_node = goal;
-	printf("\nPath: ");
+	set_node_t *rpath = NULL;
+	int path_size;
+
 	while (tmp_node && tmp_node != tmp_node->came_from)
 	{
-		printf("%s <- ", tmp_node->vector);
+		set_append(&rpath, &path_size, tmp_node);
 		tmp_node = tmp_node->came_from;
 	}
-	printf("%s\n", tmp_node->vector);
+	set_append(&rpath, &path_size, tmp_node);
+	return rpath;
+}
+
+
+void print_path_reverse(set_node_t *set_head)
+{
+	set_node_t *tmp_set_node = set_head;
+	while (tmp_set_node->next)
+		tmp_set_node = tmp_set_node->next;
+	printf("Solution Path: ");
+	while (tmp_set_node->prev)
+	{
+		printf("%s -> ", tmp_set_node->node->vector);
+		tmp_set_node = tmp_set_node->prev;
+	}
+	printf("%s\n", tmp_set_node->node->vector);
 }
 
 
@@ -613,6 +668,8 @@ void free_memory(void)
 {
 	free_node_array();
 	free_state_space(N);
+	free_set(s0.reverse_path);
+	free_set(s1.reverse_path);
 }
 
 
