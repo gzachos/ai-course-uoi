@@ -78,6 +78,7 @@ node_t     *set_delete(set_node_t **head);
 set_node_t *reconstruct_path(node_t *goal);
 void        print_path_reverse(set_node_t *set_head);
 void        reset_state_space(void);
+void        free_search_solution(search_solution_t *s);
 void        free_memory(void);
 #ifdef USE_GRAPHVIZ
 void        produce_gv_graph(void);
@@ -245,7 +246,7 @@ void free_state_space(int nrows)
 	int i;
 	if (!state_space)
 		return;
-	for (i = 0; i < nrows; i++)
+	for (i = 0; i <= nrows; i++)
 		free(state_space[i]);
 	free(state_space);
 }
@@ -691,12 +692,22 @@ void reset_state_space(void)
 }
 
 
+void free_search_solution(search_solution_t *s)
+{
+	if (!s)
+		return;
+	free_set(s->reverse_path);
+}
+
+
 void free_memory(void)
 {
 	free_node_array();
-	free_state_space(N);
-	free_set(s0.reverse_path);
-	free_set(s1.reverse_path);
+	free_state_space(N-1);
+	free_search_solution(&s0);
+	free_search_solution(&s1);
+	free_search_solution(&s2);
+	free_search_solution(&s3);
 }
 
 
