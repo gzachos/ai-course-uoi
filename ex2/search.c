@@ -21,6 +21,11 @@
 #define _H(k,l)             heuristic_cost_estimate((k)->vector,(l)->vector)
 #define _G(k,l)             _H(k,l)
 #define EDGE_COST(x,y)      heuristic_cost_estimate(x,y) // For Graphviz
+#define A_STAR(s, g, sol)   a_star(s, g, sol, 0)
+#define UCS(s, g, sol)      a_star(s, g, sol, 1)
+
+typedef enum search_type_e search_type_t;
+enum search_type_e {A_STAR, UCS};
 
 typedef struct node_s node_t;
 struct node_s {
@@ -40,11 +45,12 @@ struct set_node_s {
 
 typedef struct search_solution_s search_solution_t;
 struct search_solution_s {
-	node_t     *source;
-	node_t     *goal;
-	set_node_t *reverse_path;
-	int         expansions;
-	float       total_cost;
+	node_t        *source;
+	node_t        *goal;
+	set_node_t    *reverse_path;
+	int            expansions;
+	float          total_cost;
+	search_type_t  search_type;
 };
 
 /* Function prototypes */
@@ -61,7 +67,8 @@ node_t     *alloc_node(char *vector);
 float       heuristic_cost_estimate(char *v0, char *v1);
 int         is_neighbor(char *x, char *y);
 set_node_t *get_neighbors(node_t *node);
-void        a_star(node_t *source, node_t *goal, search_solution_t *solution);
+void        a_star(node_t *source, node_t *goal, search_solution_t *solution,
+		   int ignore_heuristic);
 void        print_search_solution_info(search_solution_t *s);
 void        set_append(set_node_t **head, int *size, node_t *new_node);
 int         set_contains(set_node_t **head, node_t *node);
@@ -81,7 +88,7 @@ int      L, M, d, N;
 char   **state_space;
 node_t **nodes;
 node_t  *source, *g1, *g2;
-search_solution_t s0, s1;
+search_solution_t s0, s1, s2, s3;
 
 
 int main(int argc, char **argv)
@@ -113,11 +120,16 @@ int main(int argc, char **argv)
 	printf("Goal #1: %s\n", g1->vector);
 	printf("Goal #2: %s\n", g2->vector);
 
-	a_star(source, g1, &s0);
-	a_star(source, g2, &s1);
+	A_STAR(source, g1, &s0);
+	A_STAR(source, g2, &s1);
+
+	UCS(source, g1, &s2);
+	UCS(source, g2, &s3);
 
 	print_search_solution_info(&s0);
 	print_search_solution_info(&s1);
+	print_search_solution_info(&s2);
+	print_search_solution_info(&s3);
 
 	return EXIT_SUCCESS;
 }
@@ -231,6 +243,8 @@ void print_node_array(void)
 void free_state_space(int nrows)
 {
 	int i;
+	if (!state_space)
+		return;
 	for (i = 0; i < nrows; i++)
 		free(state_space[i]);
 	free(state_space);
@@ -240,6 +254,8 @@ void free_state_space(int nrows)
 void free_node_array(void)
 {
 	int i;
+	if (!nodes)
+		return;
 	for (i = 0; i < N; i++)
 		if (nodes[i])
 			free(nodes[i]);
@@ -364,7 +380,8 @@ set_node_t *get_neighbors(node_t *node)
 }
 
 
-void a_star(node_t *source, node_t *goal, search_solution_t *solution)
+void a_star(node_t *source, node_t *goal, search_solution_t *solution,
+		int ignore_heuristic)
 {
 	node_t     *currnode,
 	           *neighbor_node;
@@ -407,6 +424,7 @@ void a_star(node_t *source, node_t *goal, search_solution_t *solution)
 			solution->total_cost = currnode->came_from->g +
 				               _G(currnode->came_from, currnode);
 			solution->reverse_path = reconstruct_path(currnode);
+			solution->search_type = (ignore_heuristic) ? UCS : A_STAR;
 
 			free_set(frontier);
 			free_set(neighbor_list);
@@ -437,7 +455,10 @@ void a_star(node_t *source, node_t *goal, search_solution_t *solution)
 				continue;
 			neighbor_node->came_from = currnode;
 			neighbor_node->g = new_cost;
-			neighbor_node->e = new_cost + _H(neighbor_node, goal);
+			if (ignore_heuristic)
+				neighbor_node->e = neighbor_node->g;
+			else
+				neighbor_node->e = new_cost + _H(neighbor_node, goal);
 #ifdef DEBUG_L1
 			printf("\te (%f) = %f + %f\n", neighbor_node->e, neighbor_node->g,
 					_H(neighbor_node, goal));
@@ -456,6 +477,7 @@ void a_star(node_t *source, node_t *goal, search_solution_t *solution)
 	solution->expansions   = expansions;
 	solution->total_cost   = -1;
 	solution->reverse_path = NULL;
+	solution->search_type  = (ignore_heuristic) ? UCS : A_STAR;
 
 	free_set(frontier);
 	free_set(neighbor_list);
@@ -465,8 +487,13 @@ void a_star(node_t *source, node_t *goal, search_solution_t *solution)
 
 void print_search_solution_info(search_solution_t *s)
 {
+
+	char *search_name = (s->search_type == A_STAR) ?
+		                  "A-star (A*)" :
+		                  "Uniform Cost";
 	printf("\n######################################################");
-	printf("\n#    Search from %s to %s", s->source->vector, s->goal->vector);
+	printf("\n#    %s Search from %s to %s", search_name, s->source->vector,
+			s->goal->vector);
 	printf("\n######################################################\n");
 
 	if (!s->reverse_path)
