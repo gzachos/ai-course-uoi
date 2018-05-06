@@ -12,7 +12,7 @@
 
 #define RAND(max)           (rand() % (max))  /* [0,max) */
 #define RAND_LETTER         ('A' + RAND(L))
-#define RAND_NUMBER         ('0' + RAND(M))
+#define RAND_NUMBER         ('1' + RAND(M))
 #define RAND_ALPHANUM(i)    ((i < d/2) ? RAND_LETTER : RAND_NUMBER)
 #define ERROR(...)          { fprintf(stderr, __VA_ARGS__); }
 #define ERROR_EXIT(...)     { ERROR(__VA_ARGS__); exit(EXIT_FAILURE); }
@@ -23,6 +23,7 @@
 #define EDGE_COST(x,y)      heuristic_cost_estimate(x,y) // For Graphviz
 #define A_STAR(s, g, sol)   a_star(s, g, sol, 0)
 #define UCS(s, g, sol)      a_star(s, g, sol, 1)
+#define EXPANSION_PERC(x,y) (((x).expansions-(y).expansions)*100/((float)(x).expansions))
 
 typedef enum search_type_e search_type_t;
 enum search_type_e {A_STAR, UCS};
@@ -70,6 +71,8 @@ set_node_t *get_neighbors(node_t *node);
 void        a_star(node_t *source, node_t *goal, search_solution_t *solution,
 		   int ignore_heuristic);
 void        print_search_solution_info(search_solution_t *s);
+void        compare_search_solutions(search_solution_t x,
+		search_solution_t y);
 void        set_append(set_node_t **head, int *size, node_t *new_node);
 int         set_contains(set_node_t **head, node_t *node);
 void        free_set(set_node_t *head);
@@ -121,23 +124,60 @@ int main(int argc, char **argv)
 	printf("Goal #1: %s\n", g1->vector);
 	printf("Goal #2: %s\n", g2->vector);
 
-	A_STAR(source, g1, &s0);
-	A_STAR(source, g2, &s1);
+	UCS(source, g1, &s0);
+	UCS(source, g2, &s1);
 
-	UCS(source, g1, &s2);
-	UCS(source, g2, &s3);
+	A_STAR(source, g1, &s2);
+	A_STAR(source, g2, &s3);
 
 	print_search_solution_info(&s0);
 	print_search_solution_info(&s1);
 	print_search_solution_info(&s2);
 	print_search_solution_info(&s3);
 
+	printf("\n\n######################################################\n");
+	printf(    "#    Conclusion - Solution Comparison                #\n");
+	printf(    "######################################################\n");
+	if (s0.total_cost == -1 && s1.total_cost == -1)
+		printf("No path exists from %s to %s or to %s\n\n",
+				s0.source->vector, s0.goal->vector,
+				s1.goal->vector);
+	else if ((s0.total_cost < s1.total_cost && s0.total_cost != -1) ||
+			s1.total_cost == -1)
+		compare_search_solutions(s0, s2);
+	else if ((s1.total_cost < s0.total_cost && s1.total_cost != -1) ||
+			s0.total_cost == -1)
+		compare_search_solutions(s1, s3);
+	else
+	{
+		compare_search_solutions(s0, s2);
+		compare_search_solutions(s1, s3);
+	};
+
 	return EXIT_SUCCESS;
+}
+
+
+void compare_search_solutions(search_solution_t x, search_solution_t y)
+{
+	if (x.search_type != UCS || y.search_type != A_STAR)
+		ERROR_RETURNV("compare_search_solutions(x,y): "
+				"x should be a UCS solution & "
+				"y should be an A* search solution\n");
+	if (x.source != y.source || x.goal != y.goal)
+		ERROR_RETURNV("compare_search_solutions(): Source and goal "
+				"states of the two solutions should match\n");
+	printf("Shortest path exists between %s and %s (Total cost: %.1f)\n",
+			x.source->vector, x.goal->vector, x.total_cost);
+	printf("State expansions for UCS=%d and for A*=%d (%.2f%% reduction)\n\n",
+			x.expansions, y.expansions, EXPANSION_PERC(x,y));
 }
 
 
 void get_args(char **argv)
 {
+	int upper_bound;
+
 	L = atoi(argv[1]);
 	if (L <= 0 || L >= 10)
 		ERROR_EXIT("L: should be in interval [1,9]\n");
@@ -151,11 +191,15 @@ void get_args(char **argv)
 		ERROR_EXIT("d: should be in {x: EVEN(x) && x>=2}\n");
 
 	N = atoi(argv[4]);
-	// The value of N should be at least 3: 1 initial and 2 goal states
-	if (N < 3 || N > (int) pow((double) L*M, (double) d/2))
+	upper_bound = (int) pow((double) L*M, (double) d/2);
+	// The value of N and upper_bound  should be at least 3:
+	// 1 source and 2 goal states
+	if (upper_bound < 3)
+		ERROR_EXIT("(L*M)^(d/2) = %d: should be at least 3\n",
+				upper_bound);
+	if (N < 3 || N > upper_bound)
 		ERROR_EXIT("N: should be in {x: x>=3 && x<=(L*M)^(d/2)}"
-			        " = [3, %d]\n",
-			        (int) pow((double) L*M, (double) d/2));
+			        " = [3, %d]\n", upper_bound);
 }
 
 
