@@ -52,8 +52,11 @@ Mkfile.old
 dkms.conf
 
 # Custom executables
+ex1/game
 ex2/search
 
 # Graphviz-related files
 *.png
 *.gv
+*.ps
+*.pdf
