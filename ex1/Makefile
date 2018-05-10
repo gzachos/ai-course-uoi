@@ -4,12 +4,14 @@ CFLAGS = -g -O2 -Wall -Wundef
 LDLIBS = 
 OBJECTS =
 
-all: game
+all: game game-non-optimal-min
 
-seach: game.c
-	$(CC) $(CFLAGS) $^ -o game $(LDLIBS)
+game: game.c
+	$(CC) $(CFLAGS) -DMIN_PLAYS_OPTIMALLY $^ -o game $(LDLIBS)
+
+game-non-optimal-min: game.c
+	$(CC) $(CFLAGS) -UMIN_PLAYS_OPTIMALLY $^ -o game-non-optimal-min $(LDLIBS)
 
 clean:
-	rm -rf *.out game
-	git checkout -- *.gv *.ps
+	rm -rf game game-non-optimal-min
 

@@ -53,6 +53,7 @@ dkms.conf
 
 # Custom executables
 ex1/game
+ex1/game-non-optimal-min
 ex2/search
 
 # Graphviz-related files
