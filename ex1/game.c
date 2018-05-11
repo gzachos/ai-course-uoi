@@ -18,6 +18,8 @@
 #define MIN_WINNING_VALUE          ((-1)*MAX_WINNING_VALUE)
 #define STATE_COST(node)           calculate_state_cost(node)
 #define PRINT_MENU_OPTION(x,n,c)   printf("\t%d: Remove %d %s\n", x, n, c)
+#define IS_FINAL_STATE(node)       ((node)->r + (node)->g + (node)->y == 0)
+#define VALID_OPTION(x)            options[x]
 
 typedef struct node_s node_t;
 struct node_s {
@@ -33,7 +35,6 @@ struct node_s {
 void    get_args(char **argv);
 node_t *build_game_tree(void);
 node_t *alloc_tree_node(node_t *parent);
-int     is_final_state(node_t *s);
 node_t *create_state(node_t *parent, int caseno);
 void    build_next_level(node_t *node);
 void    free_memory(void);
@@ -44,12 +45,12 @@ int     read_option(void);
 void    print_board(node_t *node);
 int     minimax(node_t *node);
 void    play_game(void);
-void    print_state(node_t *s);
 
 /* Global Data */
 int     M, K1, K2, K3;
 node_t *root;
-int     next_max_choice = -1;
+int     options[NUM_CHILDREN],
+	next_max_choice = -1;
 
 
 int main(int argc, char **argv)
@@ -70,8 +71,7 @@ int main(int argc, char **argv)
 void play_game(void)
 {
 	node_t *currnode = root;
-	char *winner;
-	short int i = 0;
+	int i = 0;
 
 	do
 	{
@@ -83,18 +83,14 @@ void play_game(void)
 		if (MAXIMIZING_PLAYER(currnode))
 		{
 			minimax(currnode);
-			winner = "MAX";
 			currnode = currnode->children[next_max_choice];
 		}
 		else
-		{
-			winner = "MIN";
 			currnode = currnode->children[read_option()];
-		}
 	}
-	while (!is_final_state(currnode));
-	printf("################################\n");
-	printf("#    Winner is %s!!!          #\n", winner);
+	while (!IS_FINAL_STATE(currnode));
+	printf("\n################################\n");
+	printf("#    Winner is %s!!!          #\n", (i == 1) ? "MAX" : "MIN");
 	printf("################################\n");
 }
 
@@ -122,10 +118,7 @@ void get_args(char **argv)
 node_t *build_game_tree(void)
 {
 	node_t *root = alloc_tree_node(NULL);
-	root->parent = NULL;
-	root->depth  = 0;
 	build_next_level(root);
-
 	return root;
 }
 
@@ -140,7 +133,7 @@ void build_next_level(node_t *node)
 	for (i = 0; i < NUM_CHILDREN; i++)
 	{
 		node->children[i] = create_state(node, i);
-		if (!is_final_state(node))
+		if (!IS_FINAL_STATE(node))
 			build_next_level(node->children[i]);
 	}
 }
@@ -148,54 +141,55 @@ void build_next_level(node_t *node)
 
 node_t *create_state(node_t *parent, int caseno)
 {
-	int update = 1;
+	int     can_update = 1;
 	node_t *node = alloc_tree_node(parent);
+
 	switch (caseno)
 	{
 		case 0:
 			if (CAN_REMOVE_RED(node, 1))
 				--(node->r);
 			else
-				update = 0;
+				can_update = 0;
 			break;
 		case 1:
 			if (CAN_REMOVE_GRN(node, 1))
 				--(node->g);
 			else
-				update = 0;
+				can_update = 0;
 			break;
 		case 2:
 			if (CAN_REMOVE_YLO(node, 1))
 				--(node->y);
 			else
-				update = 0;
+				can_update = 0;
 			break;
 		case 3:
 			if (CAN_REMOVE_RED(node, K1))
 				node->r -= K1;
 			else
-				update = 0;
+				can_update = 0;
 			break;
 		case 4:
 			if (CAN_REMOVE_GRN(node, K2))
 				node->g -= K2;
 			else
-				update = 0;
+				can_update = 0;
 			break;
 		case 5:
 			if (CAN_REMOVE_YLO(node, K3))
 				node->y -= K3;
 			else
-				update = 0;
+				can_update = 0;
 			break;
 	}
-	if (!update)
+
+	if (!can_update)
 	{
 		free(node);
 		return NULL;
 	}
-	node->parent = parent;
-	node->depth = parent->depth + 1;
+
 	return node;
 }
 
@@ -203,28 +197,27 @@ node_t *create_state(node_t *parent, int caseno)
 node_t *alloc_tree_node(node_t *parent)
 {
 	node_t *node = (node_t *) malloc(sizeof(node_t));
+
 	if (!node)
 	{
 		perror("malloc");
 		exit(errno);
 	}
+
 	if (!parent)
+	{
 		node->r = node->g = node->y = M;
+		node->depth = 0;
+		node->parent = NULL;
+	}
 	else
 	{
-		node->r = parent->r;
-		node->g = parent->g;
-		node->y = parent->y;
+		*node = *parent;
+		++(node->depth);
+		node->parent = parent;
 	}
+
 	return node;
-}
-
-
-int is_final_state(node_t *s)
-{
-	if (s->r + s->g + s->y == 0)
-		return 1;
-	return 0;
 }
 
 
@@ -251,7 +244,7 @@ int minimax(node_t *node)
 {
 	int bestvalue, i, tmp_value;
 
-	if (is_final_state(node))
+	if (IS_FINAL_STATE(node))
 		return STATE_COST(node);
 
 	if (MAXIMIZING_PLAYER(node))
@@ -293,7 +286,7 @@ int minimax(node_t *node)
 
 int calculate_state_cost(node_t *node)
 {
-	if (is_final_state(node))
+	if (IS_FINAL_STATE(node))
 	{
 		if (MAXIMIZING_PLAYER(node->parent))
 #if 1
@@ -320,31 +313,50 @@ void print_options(node_t *node)
 	printf("Available options:\n");
 	for (i = 0; i < NUM_CHILDREN; i++)
 	{
+		options[i] = 0;
 		switch (i)
 		{
 			case 0:
 				if (CAN_REMOVE_RED(node, 1))
+				{
+					options[i] = 1;
 					PRINT_MENU_OPTION(i, 1, "RED");
+				}
 				break;
 			case 1:
 				if (CAN_REMOVE_GRN(node, 1))
+				{
+					options[i] = 1;
 					PRINT_MENU_OPTION(i, 1, "GREEN");
+				}
 				break;
 			case 2:
 				if (CAN_REMOVE_YLO(node, 1))
+				{
+					options[i] = 1;
 					PRINT_MENU_OPTION(i, 1, "YELLOW");
+				}
 				break;
 			case 3:
 				if (CAN_REMOVE_RED(node, K1))
+				{
+					options[i] = 1;
 					PRINT_MENU_OPTION(i, K1, "RED");
+				}
 				break;
 			case 4:
 				if (CAN_REMOVE_GRN(node, K2))
+				{
+					options[i] = 1;
 					PRINT_MENU_OPTION(i, K2, "GREEN");
+				}
 				break;
 			case 5:
 				if (CAN_REMOVE_YLO(node, K3))
+				{
+					options[i] = 1;
 					PRINT_MENU_OPTION(i, K3, "YELLOW");
+				}
 				break;
 		}
 	}	
@@ -353,7 +365,8 @@ void print_options(node_t *node)
 
 int read_option(void)
 {
-	int choice;
+	int choice, i;
+
 	do
 	{
 		printf("Enter choice: ");
@@ -362,9 +375,13 @@ int read_option(void)
 			ERROR("scanf: Error reading choice\n");
 		        continue;
 		}
-		if (choice >= 0 && choice < NUM_CHILDREN)
+		if (choice >= 0 && choice < NUM_CHILDREN && VALID_OPTION(choice))
 			break;
-		ERROR("Valid options: [%d, %d]", 0, NUM_CHILDREN-1);
+		ERROR("Valid options: ");
+		for (i = 0; i < NUM_CHILDREN; i++)
+			if (options[i])
+				ERROR("%d ", i);
+		ERROR("\n");
 	}
 	while (1);
 	return choice;
@@ -374,6 +391,7 @@ int read_option(void)
 void print_board(node_t *node)
 {
 	int i;
+
 	printf("Current board state:\n\t");
 	for (i = 0; i < node->r; i++)
 		printf("\x1B[31m[] ");
