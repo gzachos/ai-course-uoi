@@ -10,6 +10,6 @@ seach: search.c
 	$(CC) $(CFLAGS) $^ -o search $(LDLIBS)
 
 clean:
-	rm -rf *.out search
+	rm -rf search
 	git checkout -- *.gv *.ps *.png
 
