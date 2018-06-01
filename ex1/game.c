@@ -339,21 +339,13 @@ int minimax(node_t *node)
 	}
 	else
 	{
-#ifdef MIN_PLAYS_OPTIMALLY
 		bestvalue = INT_MAX;
-#else
-		bestvalue = 0;
-#endif
 		for (i = 0; i < NUM_CHILDREN; i++)
 		{
 			if (!node->children[i])
 				continue;
 			tmp_value = minimax(node->children[i]);
-#ifdef MIN_PLAYS_OPTIMALLY
 			bestvalue = MIN(bestvalue, tmp_value);
-#else
-			bestvalue = MAX(bestvalue, tmp_value);
-#endif
 		}
 		return bestvalue;
 	}
