@@ -12,6 +12,7 @@ game: game.c
 game-non-optimal-min: game.c
 	$(CC) $(CFLAGS) -UMIN_PLAYS_OPTIMALLY $^ -o game-non-optimal-min $(LDLIBS)
 
+.PHONY: clean
 clean:
 	rm -rf game game-non-optimal-min
 
