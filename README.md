@@ -1,4 +1,4 @@
-# cse602-ai
+# ai-course-uoi
 
 ## About
 This repository contains the code developed during the Artificial Intelligence course @[cse.uoi.gr](http://cse.uoi.gr).
@@ -19,9 +19,6 @@ _Screenshot #1_:
 _Screenshot #2_:
 ![ai_search_2_2_4_10.png](./screenshots/ai_search_2_2_4_10.png)
 
-
-## Professor
-[Aristidis Likas](http://cse.uoi.gr/~arly)
 
 ## Developer
 [George Z. Zachos](http://cse.uoi.gr/~gzachos)
