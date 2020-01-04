@@ -21,7 +21,7 @@ _Screenshot #2_:
 
 
 ## Developer
-[George Z. Zachos](http://cse.uoi.gr/~gzachos)
+[George Z. Zachos](https://gzachos.com)
 
 ## License
 [GNU GENERAL PUBLIC LICENSE Version 2, June 1991](LICENSE)
